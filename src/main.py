@@ -2,25 +2,17 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from datetime import datetime, timedelta
 import hashlib
+import csv
 
-import pgdb
-
-pg_db = pgdb.Connection(user='kerenhor', password='assassin073', database='user_names', host='localhost', port=5432)
-
+with open('users.csv', newline='') as csvfile:
+    data = list(csv.reader(csvfile))
 employees = {}
-
-sql_query = 'SELECT * FROM user_names;'
-cursor = pg_db.cursor()
-
-cursor.execute(sql_query)
-
-for row in cursor.fetchall():
+for row in data:
     inner_dict = {"password": row[1],
                   "salary": row[2],
                   "next_promotion_date": row[3]}
     employees[row[0]] = inner_dict
 
-pg_db.close()
 
 app = FastAPI()
 

@@ -1,8 +1,9 @@
 import requests
+import sys
 
 login_url = "http://localhost:8000/login"
-username = "employee2"
-password = "password2"
+username = sys.argv[1]
+password = sys.argv[2]
 
 response = requests.post(
     login_url,
