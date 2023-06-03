@@ -3,34 +3,40 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from datetime import datetime, timedelta
 import hashlib
 
-app = FastAPI()
+import pgdb
 
-# Массив с информацией о сотрудниках для примера
-employees = {
-    "employee1": {
-        "password_hash": hashlib.sha256("password1".encode("utf-8")).hexdigest(),
-        "salary": 50000,
-        "next_promotion_date": "2022-01-01"
-    },
-    "employee2": {
-        "password_hash": hashlib.sha256("password2".encode("utf-8")).hexdigest(),
-        "salary": 60000,
-        "next_promotion_date": "2022-02-01"
-    }
-}
+pg_db = pgdb.Connection(user='kerenhor', password='assassin073', database='user_names', host='localhost', port=5432)
+
+employees = {}
+
+sql_query = 'SELECT * FROM user_names;'
+cursor = pg_db.cursor()
+
+cursor.execute(sql_query)
+
+for row in cursor.fetchall():
+    inner_dict = {"password": row[1],
+                  "salary": row[2],
+                  "next_promotion_date": row[3]}
+    employees[row[0]] = inner_dict
+
+pg_db.close()
+
+app = FastAPI()
 
 # Секретный ключ для подписи токенов (можно генерировать случайную строку)
 SECRET_KEY = "mysecretkey"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
+
 # Определение функции для проверки аутентификации пользователя
 def authenticate(username: str, password: str):
-    password_hash = hashlib.sha256(password.encode("utf-8")).hexdigest()
-    if username in employees and employees[username]["password_hash"] == password_hash:
+    if username in employees and employees[username]["password"] == password:
         return True
     else:
         return False
+
 
 # Определение функции для генерации токена
 def create_access_token(username: str):
@@ -38,6 +44,7 @@ def create_access_token(username: str):
     expire = datetime.utcnow() + expires_delta
     token = f"{username}:{expire.timestamp()}:{hashlib.sha256(f'{username}{expire.timestamp()}{SECRET_KEY}'.encode('utf-8')).hexdigest()}"
     return token
+
 
 # Определение функции, проверяющей валидность полученного токена и получающей пользователя
 async def get_current_user(token: str = Depends(OAuth2PasswordBearer(tokenUrl="/login"))):
@@ -50,7 +57,9 @@ async def get_current_user(token: str = Depends(OAuth2PasswordBearer(tokenUrl="/
         raise HTTPException(status_code=401, detail="Invalid token format")
     return username
 
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
+
 
 # Определение роута для аутентификации, возвращает токен при успешной аутентификации
 @app.post("/login")
@@ -61,6 +70,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     access_token = create_access_token(username)
     return {"access_token": access_token, "token_type": "bearer"}
+
 
 # Определение роута для получения информации о зарплате и дате следующего повышения
 @app.get("/salary")
