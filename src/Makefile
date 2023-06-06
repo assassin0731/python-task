@@ -1,8 +1,9 @@
 install:
 	poetry install
+	sudo docker build -t app .
 
 start:
-	uvicorn main:app --reload
+	sudo docker run -d -p 8000:8000 app
 	
 login:
 	python3 request.py $(name) $(pass)
